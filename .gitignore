@@ -1,0 +1,9 @@
+.gradle/
+build/
+.idea/
+*.iml
+.DS_Store
+.env
+
+# 과제 안내 문서
+*.pdf

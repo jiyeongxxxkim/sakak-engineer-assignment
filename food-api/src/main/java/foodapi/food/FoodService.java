@@ -28,4 +28,27 @@ public class FoodService {
                 .orElseThrow(() -> new FoodNotFoundException(id));
         return FoodResponse.from(food);
     }
+
+    @Transactional
+    public FoodResponse update(Long id, FoodRequest request) {
+        if (!foodRepository.existsById(id)) {
+            throw new FoodNotFoundException(id);
+        }
+
+        Food entity = request.toEntity(id);
+        if (foodRepository.existsByFoodCdAndIdNot(entity.getFoodCd(), id)) {
+            throw new DuplicateFoodCodeException(entity.getFoodCd());
+        }
+
+        Food updated = foodRepository.save(entity);
+        return FoodResponse.from(updated);
+    }
+
+    @Transactional
+    public void delete(Long id) {
+        if (!foodRepository.existsById(id)) {
+            throw new FoodNotFoundException(id);
+        }
+        foodRepository.deleteById(id);
+    }
 }

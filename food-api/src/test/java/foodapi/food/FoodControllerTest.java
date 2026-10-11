@@ -22,8 +22,10 @@ import java.util.Map;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.endsWith;
 import static org.hamcrest.Matchers.matchesPattern;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -229,6 +231,164 @@ class FoodControllerTest {
     @DisplayName("id가 숫자가 아니면 400이다")
     void getWithNonNumericId() throws Exception {
         mockMvc.perform(get("/foods/abc"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("INVALID_REQUEST"));
+    }
+
+    // ---- 수정(PUT) / 삭제(DELETE) ----
+
+    private ResultActions update(long id, Map<String, Object> body) throws Exception {
+        return mockMvc.perform(put("/foods/" + id)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(body)));
+    }
+
+    private long createAndGetId(Map<String, Object> body) throws Exception {
+        String location = create(body).andExpect(status().isCreated()).andReturn().getResponse().getHeader("Location");
+        return Long.parseLong(location.substring(location.lastIndexOf('/') + 1));
+    }
+
+    private long count() {
+        return jdbc.queryForObject("SELECT COUNT(*) FROM food", Long.class);
+    }
+
+    @Test
+    @DisplayName("수정하면 전체가 교체되고 요청에 없는 선택 필드는 null이 된다")
+    void putReplacesWholeResource() throws Exception {
+        long id = createAndGetId(full());
+
+        Map<String, Object> body = minimal("T001", "묵은지 찌개");
+        body.put("calorie", 200);
+
+        update(id, body)
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(id))
+                .andExpect(jsonPath("$.food_name").value("묵은지 찌개"))
+                .andExpect(jsonPath("$.calorie").value(200))
+                .andExpect(jsonPath("$.group_name").doesNotExist())
+                .andExpect(jsonPath("$.protein").doesNotExist());
+
+        Map<String, Object> row = jdbc.queryForMap("SELECT * FROM food WHERE id = ?", id);
+        assertThat(row.get("food_name")).isEqualTo("묵은지 찌개");
+        assertThat(row.get("food_name_search")).isEqualTo("묵은지찌개");
+        assertThat(row.get("maker_name_search")).isNull();
+        assertThat(row.get("group_name")).isNull();
+        assertThat(row.get("protein")).isNull();
+        assertThat(count()).isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("수정 후 조회하면 바뀐 값이 보인다")
+    void getAfterPut() throws Exception {
+        long id = createAndGetId(full());
+        update(id, minimal("T001", "바뀐 이름")).andExpect(status().isOk());
+
+        mockMvc.perform(get("/foods/" + id))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.food_name").value("바뀐 이름"));
+    }
+
+    @Test
+    @DisplayName("없는 id를 수정하면 404이다")
+    void putMissingReturns404() throws Exception {
+        update(999999, minimal("T001", "없음"))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value("FOOD_NOT_FOUND"));
+        assertThat(count()).isZero();
+    }
+
+    @Test
+    @DisplayName("다른 식품이 쓰는 코드로 수정하면 409이고 값은 바뀌지 않는다")
+    void putWithOtherRowsCodeReturns409() throws Exception {
+        createAndGetId(minimal("A001", "첫번째"));
+        long secondId = createAndGetId(minimal("B001", "두번째"));
+
+        update(secondId, minimal("a001", "두번째 수정"))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("DUPLICATE_FOOD_CODE"));
+
+        Map<String, Object> row = jdbc.queryForMap("SELECT * FROM food WHERE id = ?", secondId);
+        assertThat(row.get("food_cd")).isEqualTo("B001");
+        assertThat(row.get("food_name")).isEqualTo("두번째");
+    }
+
+    @Test
+    @DisplayName("자기 자신의 코드를 그대로(대소문자만 바꿔서도) 수정하는 것은 허용된다")
+    void putWithOwnCodeIsAllowed() throws Exception {
+        long id = createAndGetId(minimal("D000200", "원본"));
+
+        update(id, minimal("D000200", "같은 코드")).andExpect(status().isOk());
+        update(id, minimal("d000200", "소문자 코드"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.food_cd").value("d000200"));
+        assertThat(count()).isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("수정 요청이 검증에 실패하면 400이고 값은 바뀌지 않는다")
+    void putValidationErrors() throws Exception {
+        long id = createAndGetId(minimal("V001", "원본"));
+
+        Map<String, Object> body = minimal("V001", "수정");
+        body.put("calorie", -5);
+        update(id, body)
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errors[?(@.field=='calorie')]").exists());
+
+        assertThat(jdbc.queryForObject("SELECT food_name FROM food WHERE id = ?", String.class, id)).isEqualTo("원본");
+    }
+
+    @Test
+    @DisplayName("수정할 때 id가 숫자가 아니면 400이다")
+    void putWithNonNumericId() throws Exception {
+        mockMvc.perform(put("/foods/abc")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(minimal("X", "x"))))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("INVALID_REQUEST"));
+    }
+
+    @Test
+    @DisplayName("삭제하면 204이고 이후 조회하면 404이다")
+    void deleteThenGetReturns404() throws Exception {
+        long id = createAndGetId(full());
+
+        mockMvc.perform(delete("/foods/" + id))
+                .andExpect(status().isNoContent());
+
+        mockMvc.perform(get("/foods/" + id))
+                .andExpect(status().isNotFound());
+        assertThat(count()).isZero();
+    }
+
+    @Test
+    @DisplayName("삭제는 대상 식품만 지우고 다른 식품은 그대로 둔다")
+    void deleteOnlyTarget() throws Exception {
+        long keepId = createAndGetId(minimal("K001", "남길 것"));
+        long removeId = createAndGetId(minimal("K002", "지울 것"));
+
+        mockMvc.perform(delete("/foods/" + removeId)).andExpect(status().isNoContent());
+
+        assertThat(count()).isEqualTo(1);
+        mockMvc.perform(get("/foods/" + keepId)).andExpect(status().isOk());
+    }
+
+    @Test
+    @DisplayName("없는 id를 삭제하면 404이고, 같은 id를 두 번 삭제하면 두 번째는 404이다")
+    void deleteMissingReturns404() throws Exception {
+        mockMvc.perform(delete("/foods/999999"))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value("FOOD_NOT_FOUND"));
+
+        long id = createAndGetId(minimal("DEL1", "삭제"));
+        mockMvc.perform(delete("/foods/" + id)).andExpect(status().isNoContent());
+        mockMvc.perform(delete("/foods/" + id)).andExpect(status().isNotFound());
+    }
+
+    @Test
+    @DisplayName("삭제할 때 id가 숫자가 아니면 400이다")
+    void deleteWithNonNumericId() throws Exception {
+        mockMvc.perform(delete("/foods/abc"))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value("INVALID_REQUEST"));
     }

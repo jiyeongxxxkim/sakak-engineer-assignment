@@ -76,11 +76,16 @@ public record FoodRequest(
 ) {
 
     public Food toEntity() {
+        return toEntity(null);
+    }
+
+    public Food toEntity(Long id) {
         String cleanFoodCd = strip(foodCd);
         String cleanFoodName = strip(foodName);
         String cleanMakerName = strip(makerName);
 
         return Food.builder()
+                .id(id)
                 .foodCd(cleanFoodCd)
                 .groupName(strip(groupName))
                 .foodName(cleanFoodName)

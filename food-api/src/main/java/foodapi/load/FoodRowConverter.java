@@ -4,6 +4,7 @@ import foodapi.food.Food;
 import foodapi.food.SearchNormalizer;
 
 import java.math.BigDecimal;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
@@ -28,6 +29,26 @@ public class FoodRowConverter {
     private static final String COL_CHOLESTEROL = "콜레스테롤(㎎)";
     private static final String COL_SAT_FAT = "총 포화 지방산(g)";
     private static final String COL_TRANS_FAT = "트랜스 지방산(g)";
+
+    public static final List<String> REQUIRED_HEADERS = List.of(
+            COL_FOOD_CD,
+            COL_GROUP_NAME,
+            COL_FOOD_NAME,
+            COL_RESEARCH_YEAR,
+            COL_MAKER_NAME,
+            COL_REF_NAME,
+            COL_SERVING_SIZE,
+            COL_SERVING_UNIT,
+            COL_CALORIE,
+            COL_CARB,
+            COL_PROTEIN,
+            COL_FAT,
+            COL_SUGAR,
+            COL_SODIUM,
+            COL_CHOLESTEROL,
+            COL_SAT_FAT,
+            COL_TRANS_FAT
+    );
 
     // 엑셀 행 데이터를 Food 엔티티로 변환
     public Optional<Food> convert(Map<String, String> row, ConversionStats stats) {

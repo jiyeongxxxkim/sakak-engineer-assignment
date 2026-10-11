@@ -76,7 +76,8 @@ class OpenApiDocsTest {
                 .andExpect(jsonPath("$.paths['/foods/{id}'].get.responses['404']").exists())
                 .andExpect(jsonPath("$.paths['/foods/{id}'].put.responses['409']").exists())
                 .andExpect(jsonPath("$.paths['/foods/{id}'].delete.responses['204']").exists())
-                .andExpect(jsonPath("$.components.schemas.ErrorResponse.properties.code").exists());
+                .andExpect(jsonPath("$.components.schemas.ErrorResponse.properties.code").exists())
+                .andExpect(jsonPath("$.components.schemas.ErrorResponse.properties.request_id").exists());
     }
 
     @Test

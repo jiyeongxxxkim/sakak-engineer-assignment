@@ -36,6 +36,11 @@ dependencies {
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 }
 
+// Docker 이미지에서 고정된 이름으로 복사하기 위해 실행 JAR 이름을 지정한다
+tasks.named('bootJar') {
+    archiveFileName = 'food-api.jar'
+}
+
 tasks.named('test') {
     useJUnitPlatform()
 }

@@ -17,5 +17,26 @@ services:
       timeout: 3s
       retries: 20
 
+  app:
+    build:
+      context: ..
+      dockerfile: food-api/Dockerfile
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DB_URL: jdbc:mysql://db:3306/${DB_NAME:-food}?rewriteBatchedStatements=true
+      DB_USERNAME: ${DB_USERNAME:-food}
+      DB_PASSWORD: ${DB_PASSWORD:-food}
+      SEED_ENABLED: ${SEED_ENABLED:-true}
+    ports:
+      - "${APP_PORT:-8080}:8080"
+    healthcheck:
+      test: ["CMD", "curl", "-fs", "http://localhost:8080/actuator/health/readiness"]
+      interval: 10s
+      timeout: 3s
+      start_period: 40s
+      retries: 10
+
 volumes:
   db-data:

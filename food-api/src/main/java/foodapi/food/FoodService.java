@@ -1,6 +1,11 @@
 package foodapi.food;
 
+import foodapi.common.PageResponse;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -50,5 +55,22 @@ public class FoodService {
             throw new FoodNotFoundException(id);
         }
         foodRepository.deleteById(id);
+    }
+
+    @Transactional(readOnly = true)
+    public PageResponse<FoodResponse> search(FoodSearchCondition condition, Pageable pageable) {
+        // 클라이언트의 sort 파라미터는 무시하고 id 오름차순으로 고정
+        Pageable safePageable = PageRequest.of(
+                pageable.getPageNumber(),
+                pageable.getPageSize(),
+                Sort.by("id").ascending()
+        );
+
+        Page<Food> foodPage = foodRepository.findAll(
+                FoodSpecifications.from(condition),
+                safePageable
+        );
+
+        return PageResponse.from(foodPage.map(FoodResponse::from));
     }
 }

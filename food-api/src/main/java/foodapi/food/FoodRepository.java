@@ -1,8 +1,9 @@
 package foodapi.food;
 
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 
-public interface FoodRepository extends JpaRepository<Food, Long> {
+public interface FoodRepository extends JpaRepository<Food, Long> , JpaSpecificationExecutor<Food> {
     boolean existsByFoodCd(String foodCd);
     boolean existsByFoodCdAndIdNot(String foodCd, Long id);
 }

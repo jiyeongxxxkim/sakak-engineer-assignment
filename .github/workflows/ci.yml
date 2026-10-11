@@ -1,0 +1,50 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+# 같은 브랜치에서 새 커밋이 들어오면 진행 중인 이전 실행은 취소한다
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: 테스트 (algorithm, food-api)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - uses: gradle/actions/setup-gradle@v6
+
+      # 두 모듈의 테스트를 모두 실행한다. food-api 통합 테스트는 Testcontainers로
+      # MySQL 컨테이너를 띄우며, ubuntu 러너에는 Docker가 설치되어 있다.
+      - name: 빌드와 테스트
+        run: ./gradlew build
+
+      - name: 테스트 리포트 업로드 (실패 시)
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: test-reports
+          path: "**/build/reports/tests/test"
+
+  docker-build:
+    name: Docker 이미지 빌드
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      # 이미지 빌드가 깨지지 않는지만 확인한다 (푸시하지 않음)
+      - name: 이미지 빌드
+        run: docker build -f food-api/Dockerfile -t food-api:ci .

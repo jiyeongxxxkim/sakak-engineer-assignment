@@ -2,10 +2,15 @@ spring:
   application:
     name: food-api
   datasource:
-    url: ${DB_URL:jdbc:mysql://localhost:3306/food}
+    url: ${DB_URL:jdbc:mysql://localhost:3306/food?rewriteBatchedStatements=true}
     username: ${DB_USERNAME:food}
     password: ${DB_PASSWORD:food}
   jpa:
     open-in-view: false
     hibernate:
       ddl-auto: validate
+
+app:
+  seed:
+    enabled: ${SEED_ENABLED:false}
+    file: ${SEED_FILE:data/food_nutrition.xlsx}

@@ -1,9 +1,12 @@
 package foodapi.common;
 
+import com.fasterxml.jackson.databind.PropertyNamingStrategies;
+import com.fasterxml.jackson.databind.annotation.JsonNaming;
 import org.springframework.data.domain.Page;
 
 import java.util.List;
 
+@JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy.class)
 public record PageResponse<T>(
         List<T> content,
         int page,

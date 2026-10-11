@@ -1,7 +1,10 @@
 package foodapi.food;
 
+import com.fasterxml.jackson.databind.PropertyNamingStrategies;
+import com.fasterxml.jackson.databind.annotation.JsonNaming;
 import java.math.BigDecimal;
 
+@JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy.class)
 public record FoodResponse(
         Long id,
         String foodCd,
